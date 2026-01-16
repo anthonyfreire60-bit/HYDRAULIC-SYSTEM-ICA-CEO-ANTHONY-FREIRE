@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Calidad del Agua | Ingeniería Hidráulica UTC</title>
     
-    <!-- Carga de Tailwind CSS -->
+    <!-- Icono Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%232563eb%22><path d=%22M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z%22/></svg>">
+
+    <!-- LIBRERÍAS (Cargan desde internet) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Librerías de Funcionalidad -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -17,12 +18,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 
     <style>
-        /* Estilos base por si falla Tailwind */
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; margin: 0; padding: 0; }
+        /* Estilos base */
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; margin: 0; }
         
         /* Animaciones */
-        .fade-in { animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Pantalla de carga */
+        #loading-msg { transition: opacity 0.5s ease, visibility 0.5s; }
+        #loading-msg.hidden-loader { opacity: 0; visibility: hidden; }
 
         /* Colores Mapa de Calor */
         .cell-bad { background-color: #fee2e2; color: #991b1b; font-weight: 600; }
@@ -31,37 +36,36 @@
         .cell-good { background-color: #dcfce7; color: #166534; font-weight: 600; }
         .cell-excellent { background-color: #dbeafe; color: #1e40af; font-weight: 600; }
 
-        /* Utilidad para ocultar/mostrar */
+        /* Utilidad */
         .hidden-view { display: none !important; }
         
         /* Navegación Activa */
         .nav-link.active { color: #2563eb; border-bottom: 2px solid #2563eb; }
     </style>
 </head>
-<body class="flex flex-col min-h-screen text-slate-800">
+<body class="flex flex-col min-h-screen">
 
     <!-- Mensaje de Carga (Diagnóstico) -->
-    <div id="loading-msg" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
+    <div id="loading-msg" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center">
         <div class="text-center">
-            <p class="text-xl font-bold text-blue-600 animate-pulse">Cargando Sistema UTC...</p>
-            <p class="text-xs text-slate-400 mt-2">Si esto no desaparece, revisa tu conexión a internet.</p>
+            <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-xl font-bold text-blue-900">Cargando Sistema UTC...</p>
+            <p class="text-xs text-slate-400 mt-2">Iniciando módulos de cálculo...</p>
         </div>
     </div>
 
-    <!-- NAVBAR CON LOGO SVG -->
+    <!-- NAVBAR CON LOGO SVG (No falla nunca) -->
     <nav class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-col md:flex-row justify-between items-center py-4">
                 
                 <!-- LOGO SVG -->
-                <div class="flex items-center gap-4 mb-4 md:mb-0">
+                <div class="flex items-center gap-4 mb-4 md:mb-0 select-none">
                     <svg class="h-16 w-auto drop-shadow-sm" viewBox="0 0 300 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Escudo simplificado -->
                         <path d="M40 75C40 75 75 60 75 25V10H5V25C5 60 40 75 40 75Z" fill="white" stroke="#1e3a8a" stroke-width="2"/>
                         <path d="M40 75C40 75 5 60 5 25V10H40V75Z" fill="#1e3a8a" fill-opacity="0.05"/>
-                        <!-- Gota -->
                         <path d="M40 25C40 25 25 45 25 55C25 63 32 70 40 70C48 70 55 63 55 55C55 45 40 25 40 25Z" fill="#0ea5e9"/>
-                        <!-- Texto -->
+                        <path d="M78 50L88 50M78 60L88 60M75 70L85 75" stroke="#1e3a8a" stroke-width="4" stroke-linecap="round"/>
                         <text x="90" y="35" font-family="Arial, sans-serif" font-weight="900" font-size="24" fill="#1e3a8a">INGENIERÍA</text>
                         <text x="90" y="60" font-family="Arial, sans-serif" font-weight="900" font-size="24" fill="#0ea5e9">HIDRÁULICA</text>
                     </svg>
@@ -84,95 +88,151 @@
     <!-- CONTENIDO PRINCIPAL -->
     <main class="flex-grow max-w-7xl mx-auto w-full px-4 py-8">
 
-        <!-- VISTA CALCULADORA -->
+        <!-- VISTA 1: CALCULADORA -->
         <div id="view-calculator" class="fade-in space-y-8">
-            <!-- Tarjeta de Carga -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800 mb-2">1. Carga de Datos</h2>
-                        <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
-                            <p class="text-blue-600 font-medium">Clic aquí para subir Excel</p>
-                            <p class="text-xs text-slate-400 mt-1">Soporta .xlsx, .xls</p>
-                            <input type="file" id="fileInput" class="hidden" accept=".xlsx, .xls, .csv">
-                            <p id="fileNameDisplay" class="text-sm font-bold text-emerald-600 mt-2 h-5"></p>
-                        </div>
-                        <button onclick="descargarPlantilla()" class="text-xs text-blue-500 hover:underline mt-2 flex items-center gap-1">
-                            ⬇ Descargar Plantilla Ejemplo
-                        </button>
-                    </div>
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="h-1.5 bg-gradient-to-r from-blue-800 via-blue-600 to-cyan-400"></div>
+                <div class="p-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
                     
-                    <div class="bg-slate-50 p-6 rounded-lg border border-slate-100">
-                        <h2 class="text-xl font-bold text-slate-800 mb-2">2. Configuración</h2>
-                        <label class="flex items-center gap-3 cursor-pointer mb-4">
-                            <input type="checkbox" id="omitirColifecales" class="w-5 h-5 text-blue-600 rounded">
-                            <span class="text-sm font-medium text-slate-700">Omitir Coliformes Fecales (7 parámetros)</span>
-                        </label>
-                        <button id="btnProcesar" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all" disabled>
-                            Procesar Datos
-                        </button>
+                    <!-- Carga -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="flex justify-between items-end">
+                            <h2 class="text-xl font-bold text-slate-800">Carga de Datos Hidráulicos</h2>
+                            <button onclick="descargarPlantilla()" class="text-sm text-blue-600 font-medium hover:text-blue-800 flex items-center gap-1 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Plantilla Excel
+                            </button>
+                        </div>
+                        <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 p-10 text-center hover:bg-blue-50 hover:border-blue-400 transition-all cursor-pointer group">
+                            <input type="file" id="fileInput" class="hidden" accept=".xlsx, .xls, .csv">
+                            <div class="pointer-events-none space-y-3">
+                                <div class="w-12 h-12 bg-white rounded-full shadow-sm mx-auto flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v5a4 4 0 01-4 4H7z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 16v1a2 2 0 01-2 2H3a2 2 0 01-2-2V7a2 2 0 012-2h2m13 0h-2m-1 0H3m14 0h-2"></path></svg>
+                                </div>
+                                <p class="text-base font-medium text-slate-700">Arrastra tu archivo Excel aquí</p>
+                                <p id="fileNameDisplay" class="text-sm text-emerald-600 font-bold h-5"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuración -->
+                    <div class="flex flex-col justify-between bg-slate-50 rounded-xl p-6 border border-slate-100">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Configuración</h3>
+                            <label class="flex items-start gap-3 cursor-pointer group">
+                                <input type="checkbox" id="omitirColifecales" class="mt-1 w-4 h-4 text-blue-600 rounded border-slate-300">
+                                <div>
+                                    <span class="block text-sm font-semibold text-slate-700 group-hover:text-blue-700">Omitir Coliformes</span>
+                                    <span class="block text-xs text-slate-500 mt-1">Recalcula pesos ($W_i$) para 7 parámetros.</span>
+                                </div>
+                            </label>
+                        </div>
+                        <button id="btnProcesar" class="mt-4 w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-lg shadow-lg shadow-slate-200 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Procesar Datos</button>
                     </div>
                 </div>
             </div>
 
             <!-- Resultados -->
             <div id="resultsSection" class="hidden-view space-y-4 fade-in">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xl font-bold text-slate-800">Resultados</h3>
-                    <button onclick="exportToPDF()" class="bg-red-600 text-white px-4 py-2 rounded shadow hover:bg-red-700 text-sm font-bold">
-                        Exportar PDF Oficial
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h3 class="text-xl font-bold text-slate-800">Resultados del Análisis</h3>
+                    <button onclick="exportToPDF()" class="bg-red-700 hover:bg-red-800 text-white text-sm font-bold py-2 px-6 rounded-lg shadow-md flex items-center gap-2 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Exportar Reporte PDF
                     </button>
                 </div>
-                
-                <div class="overflow-x-auto bg-white rounded-xl shadow border border-slate-200">
-                    <table class="w-full text-sm text-left">
-                        <thead class="bg-slate-50 text-slate-600 uppercase text-xs border-b">
-                            <tr>
-                                <th class="px-4 py-3">Tramo</th>
-                                <th class="px-2 text-center">OD</th>
-                                <th class="px-2 text-center">Coli</th>
-                                <th class="px-2 text-center">SDT</th>
-                                <th class="px-2 text-center">DBO5</th>
-                                <th class="px-2 text-center">Nit</th>
-                                <th class="px-2 text-center">Fos</th>
-                                <th class="px-2 text-center">pH</th>
-                                <th class="px-2 text-center">Tur</th>
-                                <th class="px-4 text-center bg-blue-50 border-l">ICA</th>
-                                <th class="px-4 text-center bg-blue-50">Clase</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
-                    </table>
+                <!-- Leyenda Mapa de Calor -->
+                <div class="bg-white p-3 rounded-lg border border-slate-200 flex flex-wrap gap-2 text-xs font-bold shadow-sm">
+                    <span class="text-slate-400 font-normal mr-2">Interpretación ICA (0-100):</span>
+                    <span class="px-2 py-1 bg-red-100 text-red-800 rounded border border-red-200">0-25 Malo</span>
+                    <span class="px-2 py-1 bg-orange-100 text-orange-800 rounded border border-orange-200">26-50 Pobre</span>
+                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200">51-70 Medio</span>
+                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded border border-green-200">71-90 Bueno</span>
+                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded border border-blue-200">91-100 Excelente</span>
+                </div>
+                <!-- Tabla -->
+                <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left" id="dataTable">
+                            <thead class="bg-slate-50 text-slate-500 uppercase text-xs font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="px-4 py-4 w-1/4">Tramo</th>
+                                    <th class="px-2 text-center">OD</th>
+                                    <th class="px-2 text-center">Coli</th>
+                                    <th class="px-2 text-center">SDT</th>
+                                    <th class="px-2 text-center">DBO5</th>
+                                    <th class="px-2 text-center">Nit</th>
+                                    <th class="px-2 text-center">Fos</th>
+                                    <th class="px-2 text-center">pH</th>
+                                    <th class="px-2 text-center">Tur</th>
+                                    <th class="px-4 text-center bg-blue-50 border-l border-blue-100 text-blue-800">ICA</th>
+                                    <th class="px-4 text-center bg-blue-50 text-blue-800">Clase</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- VISTA NORMATIVA -->
+        <!-- VISTA 2: NORMATIVA -->
         <div id="view-norms" class="hidden-view fade-in">
             <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
-                <h2 class="text-2xl font-bold text-slate-800 mb-6 text-center">Marco Normativo TULSMA & INEN</h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="p-4 border rounded bg-blue-50">
-                        <h3 class="font-bold text-blue-800">Oxígeno Disuelto</h3>
-                        <p class="text-sm mt-1">TULSMA (Fría): <strong>> 5 mg/l</strong></p>
-                        <p class="text-sm">TULSMA (Cálida): <strong>> 4 mg/l</strong></p>
+                <div class="text-center max-w-3xl mx-auto mb-10">
+                    <h2 class="text-3xl font-bold text-slate-800">Diccionario de Parámetros</h2>
+                    <p class="text-slate-500 mt-3">Guía interpretativa basada en la normativa ecuatoriana vigente (TULSMA y NTE INEN 1108).</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="p-6 rounded-xl border border-blue-100 bg-blue-50 hover:shadow-sm transition-shadow">
+                        <h3 class="font-bold text-blue-800 mb-2">Oxígeno Disuelto (OD)</h3>
+                        <p class="text-xs text-slate-600 mb-3">Indispensable para la vida acuática.</p>
+                        <div class="text-xs space-y-1 font-mono text-slate-700 bg-white p-2 rounded border border-blue-100">
+                            <div class="flex justify-between"><span>TULSMA (Fría):</span> <strong>> 5 mg/l</strong></div>
+                            <div class="flex justify-between"><span>TULSMA (Cálida):</span> <strong>> 4 mg/l</strong></div>
+                        </div>
                     </div>
-                    <div class="p-4 border rounded bg-red-50">
-                        <h3 class="font-bold text-red-800">Coliformes Fecales</h3>
-                        <p class="text-sm mt-1">INEN 1108: <strong>0 UFC</strong> (Potable)</p>
-                        <p class="text-sm">TULSMA: <strong>< 200 NMP</strong> (Rec.)</p>
+                    <div class="p-6 rounded-xl border border-red-100 bg-red-50 hover:shadow-sm transition-shadow">
+                        <h3 class="font-bold text-red-800 mb-2">Coliformes Fecales</h3>
+                        <p class="text-xs text-slate-600 mb-3">Indicador de contaminación biológica.</p>
+                        <div class="text-xs space-y-1 font-mono text-slate-700 bg-white p-2 rounded border border-red-100">
+                            <div class="flex justify-between"><span>INEN 1108:</span> <strong>0 UFC</strong></div>
+                            <div class="flex justify-between"><span>TULSMA:</span> <strong>< 200 NMP</strong></div>
+                        </div>
                     </div>
-                    <div class="p-4 border rounded bg-purple-50">
-                        <h3 class="font-bold text-purple-800">pH</h3>
-                        <p class="text-sm mt-1">Rango Seguro: <strong>6.5 - 9.0</strong></p>
+                    <div class="p-6 rounded-xl border border-purple-100 bg-purple-50 hover:shadow-sm transition-shadow">
+                        <h3 class="font-bold text-purple-800 mb-2">pH</h3>
+                        <p class="text-xs text-slate-600 mb-3">Nivel de acidez o alcalinidad.</p>
+                        <div class="text-xs space-y-1 font-mono text-slate-700 bg-white p-2 rounded border border-purple-100">
+                            <div class="flex justify-between"><span>Rango Seguro:</span> <strong>6.5 - 9.0</strong></div>
+                        </div>
+                    </div>
+                    <div class="p-6 rounded-xl border border-teal-100 bg-teal-50 hover:shadow-sm transition-shadow">
+                        <h3 class="font-bold text-teal-800 mb-2">DBO5</h3>
+                        <p class="text-xs text-slate-600 mb-3">Demanda biológica de oxígeno.</p>
+                        <div class="text-xs space-y-1 font-mono text-slate-700 bg-white p-2 rounded border border-teal-100">
+                            <div class="flex justify-between"><span>Agua Limpia:</span> <strong>< 2 mg/l</strong></div>
+                            <div class="flex justify-between"><span>Contaminada:</span> <strong>> 10 mg/l</strong></div>
+                        </div>
+                    </div>
+                    <div class="p-6 rounded-xl border border-amber-100 bg-amber-50 hover:shadow-sm transition-shadow">
+                        <h3 class="font-bold text-amber-800 mb-2">Turbidez</h3>
+                        <p class="text-xs text-slate-600 mb-3">Claridad y sedimentos del agua.</p>
+                        <div class="text-xs space-y-1 font-mono text-slate-700 bg-white p-2 rounded border border-amber-100">
+                            <div class="flex justify-between"><span>INEN 1108:</span> <strong>Máx 5 NTU</strong></div>
+                        </div>
+                    </div>
+                    <div class="p-6 rounded-xl border border-lime-100 bg-lime-50 hover:shadow-sm transition-shadow">
+                        <h3 class="font-bold text-lime-800 mb-2">Nitratos</h3>
+                        <p class="text-xs text-slate-600 mb-3">Nutrientes agrícolas en exceso.</p>
+                        <div class="text-xs space-y-1 font-mono text-slate-700 bg-white p-2 rounded border border-lime-100">
+                            <div class="flex justify-between"><span>INEN Max:</span> <strong>50 mg/l</strong></div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-
     </main>
 
-    <!-- FOOTER -->
+    <!-- ================= FOOTER ================= -->
     <footer class="bg-white border-t border-slate-200 mt-auto py-6">
         <div class="max-w-7xl mx-auto px-4 text-center md:text-right">
             <p class="text-[10px] uppercase font-bold text-slate-400">Desarrollado por el equipo de investigación</p>
@@ -181,16 +241,22 @@
         </div>
     </footer>
 
-    <!-- LÓGICA JS -->
+    <!-- LÓGICA JS (A PRUEBA DE FALLOS) -->
     <script>
-        // Ocultar pantalla de carga al iniciar
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                document.getElementById('loading-msg').style.display = 'none';
-            }, 800); // Pequeña pausa para asegurar carga de estilos
-        });
+        // 1. SISTEMA DE SEGURIDAD DE CARGA
+        // Si el evento 'load' no dispara en 2.5 segundos (por red lenta o bloqueo de CDN), forzamos la entrada.
+        function hideLoader() {
+            const loader = document.getElementById('loading-msg');
+            if (loader && !loader.classList.contains('hidden-loader')) {
+                loader.classList.add('hidden-loader');
+                setTimeout(() => loader.style.display = 'none', 500);
+            }
+        }
 
-        // Configuración
+        window.addEventListener('load', hideLoader);
+        setTimeout(hideLoader, 2500); // Respaldo de seguridad (2.5s máx)
+
+        // Configuración ICA
         const pesos8 = { qOD: 0.1825, qColi: 0.1625, qSDT: 0.0925, qDBO5: 0.1125, qNitratos: 0.1125, qFosfatos: 0.1125, qpH: 0.1325, qTurbidez: 0.0925 };
         const pesos7 = { qOD: 0.206, qColi: 0, qSDT: 0.116, qDBO5: 0.136, qNitratos: 0.136, qFosfatos: 0.136, qpH: 0.156, qTurbidez: 0.116 };
         const colMap = { 'tramo': 'Tramo', 'nombre': 'Tramo', 'id': 'Tramo', 'qod': 'qOD', 'od': 'qOD', 'qcoli': 'qColi', 'colifecales': 'qColi', 'coli': 'qColi', 'qsdt': 'qSDT', 'sdt': 'qSDT', 'qdbo5': 'qDBO5', 'dbo5': 'qDBO5', 'qnitratos': 'qNitratos', 'nitratos': 'qNitratos', 'qfosfatos': 'qFosfatos', 'fosfatos': 'qFosfatos', 'qph': 'qpH', 'ph': 'qpH', 'qturbidez': 'qTurbidez', 'turbidez': 'qTurbidez' };
@@ -202,10 +268,8 @@
             document.getElementById('view-norms').classList.add('hidden-view');
             document.getElementById('btn-calc').classList.remove('active', 'text-blue-600');
             document.getElementById('btn-norms').classList.remove('active', 'text-blue-600');
-            
             document.getElementById('view-' + view).classList.remove('hidden-view');
-            const btn = view === 'calculator' ? 'btn-calc' : 'btn-norms';
-            document.getElementById(btn).classList.add('active', 'text-blue-600');
+            document.getElementById(view === 'calculator' ? 'btn-calc' : 'btn-norms').classList.add('active', 'text-blue-600');
         }
 
         const dropZone = document.getElementById('drop-zone');
@@ -250,4 +314,73 @@
             tbody.innerHTML = '';
             exportData = [];
 
-            global
+            globalData.forEach(row => {
+                const norm = { Tramo: '---', qOD:0, qColi:0, qSDT:0, qDBO5:0, qNitratos:0, qFosfatos:0, qpH:0, qTurbidez:0 };
+                Object.keys(row).forEach(k => {
+                    const cleanK = k.toLowerCase().replace(/\s/g,'');
+                    for(const [mapK, mapV] of Object.entries(colMap)) {
+                        if(cleanK.includes(mapK)) norm[mapV] = (mapV==='Tramo') ? row[k] : (parseFloat(row[k])||0);
+                    }
+                });
+
+                let score = 0;
+                score += norm.qOD * pesos.qOD;
+                if (!omitir) score += norm.qColi * pesos.qColi;
+                score += norm.qSDT * pesos.qSDT;
+                score += norm.qDBO5 * pesos.qDBO5;
+                score += norm.qNitratos * pesos.qNitratos;
+                score += norm.qFosfatos * pesos.qFosfatos;
+                score += norm.qpH * pesos.qpH;
+                score += norm.qTurbidez * pesos.qTurbidez;
+
+                let cls = "";
+                if(score > 90) cls="Excelente";
+                else if(score > 70) cls="Buena";
+                else if(score > 50) cls="Media";
+                else if(score > 25) cls="Mala";
+                else cls="Muy Mala";
+
+                exportData.push([norm.Tramo, norm.qOD, omitir ? '-' : norm.qColi, norm.qSDT, norm.qDBO5, norm.qNitratos, norm.qFosfatos, norm.qpH, norm.qTurbidez, score.toFixed(2), cls]);
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-medium bg-white border-b sticky left-0">${norm.Tramo}</td>
+                    <td class="text-center px-2 py-3 border-b ${getCellClass(norm.qOD)}">${norm.qOD}</td>
+                    <td class="text-center px-2 py-3 border-b ${omitir?'opacity-30 bg-slate-100':getCellClass(norm.qColi)}">${norm.qColi}</td>
+                    <td class="text-center px-2 py-3 border-b ${getCellClass(norm.qSDT)}">${norm.qSDT}</td>
+                    <td class="text-center px-2 py-3 border-b ${getCellClass(norm.qDBO5)}">${norm.qDBO5}</td>
+                    <td class="text-center px-2 py-3 border-b ${getCellClass(norm.qNitratos)}">${norm.qNitratos}</td>
+                    <td class="text-center px-2 py-3 border-b ${getCellClass(norm.qFosfatos)}">${norm.qFosfatos}</td>
+                    <td class="text-center px-2 py-3 border-b ${getCellClass(norm.qpH)}">${norm.qpH}</td>
+                    <td class="text-center px-2 py-3 border-b ${getCellClass(norm.qTurbidez)}">${norm.qTurbidez}</td>
+                    <td class="text-center px-4 py-3 border-b font-bold bg-slate-50 border-l">${score.toFixed(2)}</td>
+                    <td class="text-center px-4 py-3 border-b bg-slate-50 font-bold ${cls==='Excelente'?'text-blue-600':cls==='Buena'?'text-green-600':cls==='Media'?'text-yellow-600':cls==='Mala'?'text-orange-600':'text-red-600'}">${cls}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            document.getElementById('resultsSection').classList.remove('hidden-view');
+            document.getElementById('resultsSection').scrollIntoView({behavior: 'smooth'});
+        });
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+            doc.setFontSize(16); doc.setTextColor(30, 58, 138);
+            doc.text("Reporte de Calidad del Agua (ICA-NSF)", 14, 20);
+            doc.setFontSize(10); doc.setTextColor(100);
+            doc.text("Generado por: Sistema ICA - Universidad Técnica de Cotopaxi", 14, 26);
+            doc.text(`Fecha de Reporte: ${new Date().toLocaleDateString()}`, 14, 31);
+            doc.autoTable({ startY: 36, head: [['Tramo', 'qOD', 'qColi', 'qSDT', 'qDBO5', 'qNit', 'qFos', 'qpH', 'qTur', 'ICA', 'Clase']], body: exportData, theme: 'striped', headStyles: { fillColor: [30, 58, 138] }, styles: { fontSize: 8, cellPadding: 2 } });
+            doc.save('Reporte_ICA_UTC.pdf');
+        }
+
+        function descargarPlantilla() {
+            const data = [["Tramo", "qOD", "qColifecales", "qSDT", "qDBO5", "qNitratos", "qFosfatos", "qpH", "qTurbidez"], ["Muestra A", 95, 90, 95, 92, 88, 90, 95, 98], ["Muestra B", 20, 15, 30, 25, 40, 35, 60, 20]];
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Plantilla_ICA");
+            XLSX.writeFile(wb, "Plantilla_Carga_ICA.xlsx");
+        }
+    </script>
+</body>
+</html>

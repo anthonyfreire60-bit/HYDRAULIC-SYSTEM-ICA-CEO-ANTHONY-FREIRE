@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Calidad del Agua | Ingeniería Hidráulica UTC</title>
+    
+    <!-- Icono Favicon (Gota generada por código) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%232563eb%22><path d=%22M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z%22/></svg>">
+
+    <!-- Librerías Externas -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Fuentes Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; }
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Colores Mapa de Calor */
+        .cell-bad { background-color: #fee2e2; color: #991b1b; font-weight: 600; }
+        .cell-poor { background-color: #ffedd5; color: #9a3412; font-weight: 600; }
+        .cell-medium { background-color: #fef9c3; color: #854d0e; font-weight: 600; }
+        .cell-good { background-color: #dcfce7; color: #166534; font-weight: 600; }
+        .cell-excellent { background-color: #dbeafe; color: #1e40af; font-weight: 600; }
+
+        .nav-link { position: relative; color: #64748b; font-weight: 500; transition: all 0.2s; cursor: pointer; }
+        .nav-link:hover { color: #0f172a; }
+        .nav-link.active { color: #2563eb; }
+        .nav-link.active::after { content: ''; position: absolute; bottom: -24px; left: 0; width: 100%; height: 3px; background-color: #2563eb; border-radius: 3px 3px 0 0; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- ================= NAVBAR ================= -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center h-auto md:h-24 py-4 md:py-0">
+                
+                <!-- LOGO INTEGRADO (SVG) -->
+                <div class="flex items-center gap-4 group cursor-default">
+                    <!-- Icono Dibujado en Código -->
+                    <div class="relative w-14 h-16 flex items-center justify-center">
+                        <svg class="w-full h-full drop-shadow-sm" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Escudo Fondo -->
+                            <path d="M50 115C50 115 95 95 95 35V10H5V35C5 95 50 115 50 115Z" fill="white" stroke="#1e3a8a" stroke-width="3"/>
+                            <!-- Mitad Azul Oscuro -->
+                            <path d="M50 115C50 115 5 95 5 35V10H50V115Z" fill="#1e3a8a" fill-opacity="0.1"/>
+                            <!-- Gota -->
+                            <path d="M50 35C50 35 28 65 28 80C28 92 38 102 50 102C62 102 72 92 72 80C72 65 50 35 50 35Z" fill="#0ea5e9"/>
+                            <!-- Engranaje (Detalle) -->
+                            <path d="M78 50L88 50M78 60L88 60M75 70L85 75" stroke="#1e3a8a" stroke-width="4" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    
+                    <!-- Texto del Logo -->
+                    <div class="flex flex-col justify-center">
+                        <h1 class="text-2xl md:text-3xl font-black text-blue-900 leading-none tracking-tight uppercase" style="font-family: 'Arial Black', sans-serif;">
+                            Ingeniería<br><span class="text-blue-600">Hidráulica</span>
+                        </h1>
+                        <span class="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-[0.15em] mt-1 border-t border-slate-300 pt-1">
+                            Universidad Técnica de Cotopaxi
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Menú -->
+                <div class="flex items-center gap-6 mt-4 md:mt-0">
+                    <button onclick="switchView('calculator')" id="btn-calc" class="nav-link active h-10 flex items-center">Calculadora</button>
+                    <button onclick="switchView('norms')" id="btn-norms" class="nav-link h-10 flex items-center">Normativa</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ================= CONTENIDO PRINCIPAL ================= -->
+    <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
+
+        <!-- VISTA 1: CALCULADORA -->
+        <div id="view-calculator" class="fade-in space-y-8">
+            <!-- Panel de Carga -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="h-1.5 bg-gradient-to-r from-blue-800 via-blue-600 to-cyan-400"></div>
+                <div class="p-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
+                    <!-- Drag & Drop -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="flex justify-between items-end">
+                            <h2 class="text-xl font-bold text-slate-800">Carga de Datos Hidráulicos</h2>
+                            <button onclick="descargarPlantilla()" class="text-sm text-blue-600 font-medium hover:text-blue-800 flex items-center gap-1 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> Plantilla Excel
+                            </button>
+                        </div>
+                        <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 p-10 text-center hover:bg-blue-50 hover:border-blue-400 transition-all cursor-pointer group">
+                            <input type="file" id="fileInput" class="hidden" accept=".xlsx, .xls, .csv">
+                            <div class="pointer-events-none space-y-3">
+                                <div class="w-12 h-12 bg-white rounded-full shadow-sm mx-auto flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v5a4 4 0 01-4 4H7z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 16v1a2 2 0 01-2 2H3a2 2 0 01-2-2V7a2 2 0 012-2h2m13 0h-2m-1 0H3m14 0h-2"></path></svg>
+                                </div>
+                                <p class="text-base font-medium text-slate-700">Arrastra tu archivo Excel aquí</p>
+                                <p id="fileNameDisplay" class="text-sm text-emerald-600 font-bold h-5"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Configuración -->
+                    <div class="flex flex-col justify-between bg-slate-50 rounded-xl p-6 border border-slate-100">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Configuración</h3>
+                            <label class="flex items-start gap-3 cursor-pointer group">
+                                <input type="checkbox" id="omitirColifecales" class="mt-1 w-4 h-4 text-blue-600 rounded border-slate-300">
+                                <div>
+                                    <span class="block text-sm font-semibold text-slate-700 group-hover:text-blue-700">Omitir Coliformes</span>
+                                    <span class="block text-xs text-slate-500 mt-1">Recalcula pesos ($W_i$) para 7 parámetros.</span>
+                                </div>
+                            </label>
+                        </div>
+                        <button id="btnProcesar" class="mt-4 w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-lg shadow-lg shadow-slate-200 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Procesar Datos</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resultados -->
+            <div id="resultsSection" class="hidden space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h3 class="text-xl font-bold text-slate-800">Resultados del Análisis</h3>
+                    <button onclick="exportToPDF()" class="bg-red-700 hover:bg-red-800 text-white text-sm font-bold py-2 px-6 rounded-lg shadow-md flex items-center gap-2 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Exportar Reporte PDF
+                    </button>
+                </div>
+                <!-- Leyenda Mapa de Calor -->
+                <div class="bg-white p-3 rounded-lg border border-slate-200 flex flex-wrap gap-2 text-xs font-bold shadow-sm">
+                    <span class="text-slate-400 font-normal mr-2">Interpretación ICA (0-100):</span>
+                    <span class="px-2 py-1 bg-red-100 text-red-800 rounded border border-red-200">0-25 Malo</span>
+                    <span class="px-2 py-1 bg-orange-100 text-orange-800 rounded border border-orange-200">26-50 Pobre</span>
+                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded border border-yellow-200">51-70 Medio</span>
+                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded border border-green-200">71-90 Bueno</span>
+                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded border border-blue-200">91-100 Excelente</span>
+                </div>
+                <!-- Tabla -->
+                <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left" id="dataTable">
+                            <thead class="bg-slate-50 text-slate-500 uppercase text-xs font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="px-4 py-4 w-1/4">Tramo</th>
+                                    <th class="px-2 text-center">OD</th>
+                                    <th class="px-2 text-center">Coli</th>
+                                    <th class="px-2 text-center">SDT</th>
+                                    <th class="px-2 text-center">DBO5</th>
+                                    <th class="px-2 text-center">Nit</th>
+                                    <th class="px-2 text-center">Fos</th>
+                                    <th class="px-2 text-center">pH</th>
+                                    <th class="px-2 text-center">Tur</th>
+                                    <th class="px-4 text-center bg-blue-50 border-l border-blue-100 text-blue-800">ICA</th>
+                                    <th class="px-4 text-center bg-blue-50 text-blue-800">Clase</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA 2: NORMATIVA -->
+        <div id="view-norms" class="hidden fade-in space-y-8">
+            <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+                <div class="text-center max-w-3xl mx-auto mb-10">
+                    <h2 class="text-3xl font-bold text-slate-800">Diccionario de Parámetros</h2>
+                    <p class="text-slate-500 mt-3">Guía interpretativa basada en la normativa ecuatoriana vigente (TULSMA y NTE INEN 1108).</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="p-6 rounded-xl border border-blue-100 bg-blue-50 hover:shadow-sm transition-shadow">
+                        <h3 class="font-bold text-blue-800 mb-2">Oxígeno Disuelto (OD)</h3>
+                        <p class="text-xs text-slate-600 mb-3">Indispensable para la vida acuática.</p>
+                        <div class="text-xs space-y-1 font-mono text-slate-700 bg-white p-2 rounded border border-blue-100">
+                            <div class="flex justify-between"><span>TULSMA (Fría):</span> <strong>> 5 mg/l</strong></div>
+                            <div class="flex justify-between"><span>TULSMA (Cálida):</span> <strong>> 4 mg/l</strong></div>
+                        </div>
+                    </div>
+                    <div class="p-6 rounded-xl border border-red-100 bg-red-50 hover:shadow-sm transition-shadow">
+                        <h3 class="font-bold text-red-800 mb-2">Coliformes Fecales</h3>
+                        <p class="text-xs text-slate-600 mb-3">Indicador de contaminación biológica.</p>
+                        <div class="text-xs space-y-1 font-mono text-slate-700 bg-white p-2 rounded border border-red-100">
+                            <div class="flex justify-between"><span>INEN 1108:</span> <strong>0 UFC</strong></div>
+                            <div class="flex justify-between"><span>TULSMA:</span> <strong>< 200 NMP</strong></div>
+                        </div>
+                    </div>
+                    <div class="p-6 rounded-xl border border-purple-100 bg-purple-50 hover:shadow-sm transition-shadow">
+                        <h3 class="font-bold text-purple-800 mb-2">pH</h3>
+                        <p class="text-xs text-slate-600 mb-3">Nivel de acidez o alcalinidad.</p>
+                        <div class="text-xs space-y-1 font-mono text-slate-700 bg-white p-2 rounded border border-purple-100">
+                            <div class="flex justify-between"><span>Rango Seguro:</span> <strong>6.5 - 9.0</strong></div>
+                        </div>
+                    </div>
+                    <div class="p-6 rounded-xl border border-teal-100 bg-teal-50 hover:shadow-sm transition-shadow">
+                        <h3 class="font-bold text-teal-800 mb-2">DBO5</h3>
+                        <p class="text-xs text-slate-600 mb-3">Demanda biológica de oxígeno.</p>
+                        <div class="text-xs space-y-1 font-mono text-slate-700 bg-white p-2 rounded border border-teal-100">
+                            <div class="flex justify-between"><span>Agua Limpia:</span> <strong>< 2 mg/l</strong></div>
+                            <div class="flex justify-between"><span>Contaminada:</span> <strong>> 10 mg/l</strong></div>
+                        </div>
+                    </div>
+                    <div class="p-6 rounded-xl border border-amber-100 bg-amber-50 hover:shadow-sm transition-shadow">
+                        <h3 class="font-bold text-amber-800 mb-2">Turbidez</h3>
+                        <p class="text-xs text-slate-600 mb-3">Claridad y sedimentos del agua.</p>
+                        <div class="text-xs space-y-1 font-mono text-slate-700 bg-white p-2 rounded border border-amber-100">
+                            <div class="flex justify-between"><span>INEN 1108:</span> <strong>Máx 5 NTU</strong></div>
+                        </div>
+                    </div>
+                    <div class="p-6 rounded-xl border border-lime-100 bg-lime-50 hover:shadow-sm transition-shadow">
+                        <h3 class="font-bold text-lime-800 mb-2">Nitratos</h3>
+                        <p class="text-xs text-slate-600 mb-3">Nutrientes agrícolas en exceso.</p>
+                        <div class="text-xs space-y-1 font-mono text-slate-700 bg-white p-2 rounded border border-lime-100">
+                            <div class="flex justify-between"><span>INEN Max:</span> <strong>50 mg/l</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= FOOTER ================= -->
+    <footer class="bg-white border-t border-slate-200 mt-auto py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="text-center md:text-left">
+                <p class="text-sm font-bold text-slate-900">Proyecto de Investigación Académica</p>
+                <p class="text-xs text-slate-500 mt-1">Facultad de Ingeniería y Ciencias Aplicadas (UTC)</p>
+            </div>
+            <div class="flex flex-col items-center md:items-end">
+                <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">Desarrollado por</p>
+                <div class="flex flex-col items-center md:items-end gap-1">
+                    <span class="text-sm font-bold text-slate-800">Anthony Freire</span>
+                    <span class="text-sm font-bold text-slate-800">Fabricio Aguinda</span>
+                    <span class="text-sm font-bold text-slate-800">Antonio Chuquimarca</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        const pesos8 = { qOD: 0.1825, qColi: 0.1625, qSDT: 0.0925, qDBO5: 0.1125, qNitratos: 0.1125, qFosfatos: 0.1125, qpH: 0.1325, qTurbidez: 0.0925 };
+        const pesos7 = { qOD: 0.206, qColi: 0, qSDT: 0.116, qDBO5: 0.136, qNitratos: 0.136, qFosfatos: 0.136, qpH: 0.156, qTurbidez: 0.116 };
+        
+        const colMap = { 'tramo': 'Tramo', 'nombre': 'Tramo', 'id': 'Tramo', 'qod': 'qOD', 'od': 'qOD', 'qcoli': 'qColi', 'colifecales': 'qColi', 'coli': 'qColi', 'qsdt': 'qSDT', 'sdt': 'qSDT', 'qdbo5': 'qDBO5', 'dbo5': 'qDBO5', 'qnitratos': 'qNitratos', 'nitratos': 'qNitratos', 'qfosfatos': 'qFosfatos', 'fosfatos': 'qFosfatos', 'qph': 'qpH', 'ph': 'qpH', 'qturbidez': 'qTurbidez', 'turbidez': 'qTurbidez' };
+
+        let globalData = [], exportData = [];
+
+        function switchView(viewName) {
+            document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+            document.getElementById('view-' + viewName).classList.remove('hidden');
+            const btnId = viewName === 'calculator' ? 'btn-calc' : 'btn-norms';
+            document.getElementById(btnId).classList.add('active');
+        }
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('fileInput');
+        
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-50'); });
+        dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-500', 'bg-blue-50'); });
+        dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('border-blue-500', 'bg-blue-50'); handleFile(e.dataTransfer.files[0]); });
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        function handleFile(file) {
+            if (!file) return;
+            document.getElementById('fileNameDisplay').textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                globalData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                document.getElementById('btnProcesar').disabled = false;
+                document.getElementById('btnProcesar').classList.remove('bg-slate-800');
+                document.getElementById('btnProcesar').classList.add('bg-blue-600', 'hover:bg-blue-700');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function getCellClass(val) {
+            if (val == null || isNaN(val)) return "";
+            if (val <= 25) return "cell-bad";
+            if (val <= 50) return "cell-poor";
+            if (val <= 70) return "cell-medium";
+            if (val <= 90) return "cell-good";
+            return "cell-excellent";
+        }
+
+        document.getElementById('btnProcesar').addEventListener('click', () => {
+            const omitir = document.getElementById('omitirColifecales').checked;
+            const pesos = omitir ? pesos7 : pesos8;
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            exportData = [];
+
+            globalData.forEach(row => {
+                const norm = { Tramo: '---', qOD:0, qColi:0, qSDT:0, qDBO5:0, qNitratos:0, qFosfatos:0, qpH:0, qTurbidez:0 };
+                Object.keys(row).forEach(k => {
+                    const cleanK = k.toLowerCase().replace(/\s/g,'');
+                    for(const [mapK, mapV] of Object.entries(colMap)) {
+                        if(cleanK.includes(mapK)) norm[mapV] = (mapV==='Tramo') ? row[k] : (parseFloat(row[k])||0);
+                    }
+                });
+
+                let score = 0;
+                score += norm.qOD * pesos.qOD;
+                if (!omitir) score += norm.qColi * pesos.qColi;
+                score += norm.qSDT * pesos.qSDT;
+                score += norm.qDBO5 * pesos.qDBO5;
+                score += norm.qNitratos * pesos.qNitratos;
+                score += norm.qFosfatos * pesos.qFosfatos;
+                score += norm.qpH * pesos.qpH;
+                score += norm.qTurbidez * pesos.qTurbidez;
+
+                let cls = "";
+                if(score > 90) cls="Excelente";
+                else if(score > 70) cls="Buena";
+                else if(score > 50) cls="Media";
+                else if(score > 25) cls="Mala";
+                else cls="Muy Mala";
+
+                exportData.push([norm.Tramo, norm.qOD, omitir ? '-' : norm.qColi, norm.qSDT, norm.qDBO5, norm.qNitratos, norm.qFosfatos, norm.qpH, norm.qTurbidez, score.toFixed(2), cls]);
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-4 py-4 font-medium text-slate-900 border-b border-slate-100 sticky left-0 bg-white">${norm.Tramo}</td>
+                    <td class="text-center px-2 py-3 border-b border-slate-100 ${getCellClass(norm.qOD)} rounded-sm">${norm.qOD}</td>
+                    <td class="text-center px-2 py-3 border-b border-slate-100 ${omitir?'opacity-30 bg-slate-100':getCellClass(norm.qColi)} rounded-sm">${norm.qColi}</td>
+                    <td class="text-center px-2 py-3 border-b border-slate-100 ${getCellClass(norm.qSDT)} rounded-sm">${norm.qSDT}</td>
+                    <td class="text-center px-2 py-3 border-b border-slate-100 ${getCellClass(norm.qDBO5)} rounded-sm">${norm.qDBO5}</td>
+                    <td class="text-center px-2 py-3 border-b border-slate-100 ${getCellClass(norm.qNitratos)} rounded-sm">${norm.qNitratos}</td>
+                    <td class="text-center px-2 py-3 border-b border-slate-100 ${getCellClass(norm.qFosfatos)} rounded-sm">${norm.qFosfatos}</td>
+                    <td class="text-center px-2 py-3 border-b border-slate-100 ${getCellClass(norm.qpH)} rounded-sm">${norm.qpH}</td>
+                    <td class="text-center px-2 py-3 border-b border-slate-100 ${getCellClass(norm.qTurbidez)} rounded-sm">${norm.qTurbidez}</td>
+                    <td class="text-center px-4 py-3 font-bold text-slate-800 border-l border-b border-slate-100 bg-slate-50">${score.toFixed(2)}</td>
+                    <td class="text-center px-4 py-3 border-b border-slate-100 bg-slate-50"><span class="px-2 py-1 rounded text-xs font-bold border ${getBadgeClass(cls)}">${cls}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            document.getElementById('resultsSection').classList.remove('hidden');
+            document.getElementById('resultsSection').scrollIntoView({behavior: 'smooth'});
+        });
+
+        function getBadgeClass(cls) {
+            if(cls.includes("Excel")) return "bg-blue-100 text-blue-800 border-blue-200";
+            if(cls.includes("Buena")) return "bg-green-100 text-green-800 border-green-200";
+            if(cls.includes("Media")) return "bg-yellow-100 text-yellow-800 border-yellow-200";
+            if(cls.includes("Mala")) return "bg-orange-100 text-orange-800 border-orange-200";
+            return "bg-red-100 text-red-800 border-red-200";
+        }
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4');
+            doc.setFontSize(16); doc.setTextColor(30, 58, 138);
+            doc.text("Reporte de Calidad del Agua (ICA-NSF)", 14, 20);
+            doc.setFontSize(10); doc.setTextColor(100);
+            doc.text("Generado por: Sistema ICA - Universidad Técnica de Cotopaxi", 14, 26);
+            doc.text(`Fecha de Reporte: ${new Date().toLocaleDateString()}`, 14, 31);
+            doc.autoTable({ startY: 36, head: [['Tramo', 'qOD', 'qColi', 'qSDT', 'qDBO5', 'qNit', 'qFos', 'qpH', 'qTur', 'ICA', 'Clase']], body: exportData, theme: 'striped', headStyles: { fillColor: [37, 99, 235] }, styles: { fontSize: 9, cellPadding: 2 }, columnStyles: { 0: { fontStyle: 'bold' } } });
+            doc.save('Reporte_Calidad_Agua_UTC.pdf');
+        }
+
+        function descargarPlantilla() {
+            const data = [["Tramo", "qOD", "qColifecales", "qSDT", "qDBO5", "qNitratos", "qFosfatos", "qpH", "qTurbidez"], ["Muestra 1", 95, 90, 95, 92, 88, 90, 95, 98], ["Muestra 2", 20, 15, 30, 25, 40, 35, 60, 20]];
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Plantilla_ICA");
+            XLSX.writeFile(wb, "Plantilla_Carga_ICA.xlsx");
+        }
+    </script>
+</body>
+</html>
